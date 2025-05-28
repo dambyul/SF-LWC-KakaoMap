@@ -3,7 +3,6 @@
 config/
 .forceignore
 sfdx-project.json
-README.md
 manifest/
 force-app/main/default/lwc/kakaoMap/__tests__/
 force-app/main/default/lwc/jsconfig.json
