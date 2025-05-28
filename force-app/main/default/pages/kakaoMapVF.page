@@ -1,0 +1,120 @@
+<apex:page id="kakaoMapVF">
+<html>
+<head>
+    <meta charset="utf-8" />
+</head>
+<body>
+    <div id="map" style="width: 100%; height: 800px;"></div>
+    <script type="text/javascript" src="https://dapi.kakao.com/v2/maps/sdk.js?appkey=apikey입력"></script>
+    <script>
+        function getParam(name) {
+            const url = new URL(window.location.href);
+            return parseFloat(url.searchParams.get(name));
+        }
+
+        const pickupLat = getParam("pickupLat");
+        const pickupLng = getParam("pickupLng");
+        const installLat = getParam("installLat");
+        const installLng = getParam("installLng");
+
+        const hasPickup = !isNaN(pickupLat) && !isNaN(pickupLng);
+        const hasInstall = !isNaN(installLat) && !isNaN(installLng);
+
+        if (!hasPickup && !hasInstall) {
+            document.getElementById("map").innerHTML = "<p>좌표 정보가 없습니다.</p>";
+            throw new Error("No valid coordinates");
+        }
+
+        const mapContainer = document.getElementById("map");
+
+        const startSrc = 'https://t1.daumcdn.net/localimg/localimages/07/mapapidoc/red_b.png',
+              startSize = new kakao.maps.Size(50, 45),
+              startOption = { offset: new kakao.maps.Point(15, 43) };
+
+        const arriveSrc = 'https://t1.daumcdn.net/localimg/localimages/07/mapapidoc/blue_b.png',
+              arriveSize = new kakao.maps.Size(50, 45),
+              arriveOption = { offset: new kakao.maps.Point(15, 43) };
+
+        const startImage = new kakao.maps.MarkerImage(startSrc, startSize, startOption);
+        const arriveImage = new kakao.maps.MarkerImage(arriveSrc, arriveSize, arriveOption);
+
+        function getDistance(lat1, lng1, lat2, lng2) {
+            const R = 6371e3;
+            const toRad = angle => (angle * Math.PI) / 180;
+            const φ1 = toRad(lat1), φ2 = toRad(lat2);
+            const Δφ = toRad(lat2 - lat1);
+            const Δλ = toRad(lng2 - lng1);
+            const a = Math.sin(Δφ/2) ** 2 +
+                      Math.cos(φ1) * Math.cos(φ2) *
+                      Math.sin(Δλ/2) ** 2;
+            const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+            return R * c;
+        }
+
+        function getMapLevelByDistance(distanceMeters) {
+            if (distanceMeters < 500) return 3;
+            if (distanceMeters < 1000) return 4;
+            if (distanceMeters < 2000) return 5;
+            if (distanceMeters < 5000) return 6;
+            if (distanceMeters < 10000) return 7;
+            if (distanceMeters < 20000) return 8;
+            if (distanceMeters < 40000) return 9;
+            return 10;
+        }
+
+        // 중심좌표 및 레벨 결정
+        let centerLat, centerLng, level;
+        if (hasPickup && hasInstall) {
+            centerLat = (pickupLat + installLat) / 2;
+            centerLng = (pickupLng + installLng) / 2;
+            level = getMapLevelByDistance(getDistance(pickupLat, pickupLng, installLat, installLng));
+        } else if (hasInstall) {
+            centerLat = installLat;
+            centerLng = installLng;
+            level = 3;
+        } else {
+            centerLat = pickupLat;
+            centerLng = pickupLng;
+            level = 3;
+        }
+
+        const map = new kakao.maps.Map(mapContainer, {
+            center: new kakao.maps.LatLng(centerLat, centerLng),
+            level: level
+        });
+
+        if (hasPickup) {
+            new kakao.maps.Marker({
+                position: new kakao.maps.LatLng(pickupLat, pickupLng),
+                map: map,
+                title: "회수 주소",
+                image: startImage
+            });
+        }
+
+        if (hasInstall) {
+            new kakao.maps.Marker({
+                position: new kakao.maps.LatLng(installLat, installLng),
+                map: map,
+                title: "설치 주소",
+                image: arriveImage
+            });
+        }
+
+        if (hasPickup && hasInstall) {
+            const line = new kakao.maps.Polyline({
+                path: [
+                    new kakao.maps.LatLng(pickupLat, pickupLng),
+                    new kakao.maps.LatLng(installLat, installLng)
+                ],
+                strokeWeight: 3,
+                strokeColor: "#FF0000",
+                strokeOpacity: 0.7,
+                strokeStyle: "solid"
+            });
+            line.setMap(map);
+        }
+    </script>
+</body>
+</html>
+</apex:page>
